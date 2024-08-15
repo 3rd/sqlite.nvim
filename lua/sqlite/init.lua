@@ -1,10 +1,9 @@
 local Database = require("sqlite.database")
 
-local setup = function()
-  print("setup")
+local M = {}
+
+function M.open(path, options)
+  return Database.open(path, options)
 end
 
-return {
-  setup = setup,
-  Database = Database,
-}
+return M

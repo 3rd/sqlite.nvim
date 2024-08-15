@@ -2,7 +2,7 @@
 
 local Database = require("sqlite.database")
 
-describe("Database", function()
+describe("database", function()
   it("should open a database", function()
     local db = Database.open(":memory:")
     local result = db:execute(".mode", false)
@@ -36,7 +36,7 @@ describe("Database", function()
 
     db:insert("users", { id = 1, name = "John Doe" })
 
-    local result = db:fetch("users", "*")
+    local result = db:select("users")
     expect(result).toEqual({ { id = 1, name = "John Doe" } })
   end)
 
@@ -45,11 +45,11 @@ describe("Database", function()
     db:create_table("users", { "id", "name" })
     db:insert("users", { id = 1, name = "John Doe" })
 
-    local result = db:fetch("users", "*")
+    local result = db:select("users")
     expect(result).toEqual({ { id = 1, name = "John Doe" } })
 
     db:update("users", { name = "Jane Doe" }, "id = 1")
-    result = db:fetch("users", "*")
+    result = db:select("users")
     expect(result).toEqual({ { id = 1, name = "Jane Doe" } })
   end)
 
@@ -58,11 +58,11 @@ describe("Database", function()
     db:create_table("users", { "id", "name" })
     db:insert("users", { id = 1, name = "John Doe" })
 
-    local result = db:fetch("users", "*")
+    local result = db:select("users")
     expect(result).toEqual({ { id = 1, name = "John Doe" } })
 
     db:delete("users", "id = 1")
-    result = db:fetch("users", "*")
+    result = db:select("users")
     expect(result).toBe(nil)
   end)
 
