@@ -49,7 +49,7 @@ describe("database", function()
     local result = db:select("users")
     expect(result).toEqual({ { id = 1, name = "John Doe" } })
 
-    db:update("users", { name = "Jane Doe" }, "id = 1")
+    db:update("users", "id = 1", { name = "Jane Doe" })
     result = db:select("users")
     expect(result).toEqual({ { id = 1, name = "Jane Doe" } })
   end)

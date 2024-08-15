@@ -1,10 +1,10 @@
 # sqlite.nvim
 
-Lua library for working with SQLite databases.
+Library for working with SQLite databases in Neovim.
 \
 Requires `sqlite3` in `PATH`.
 
-## Usage - Database
+### Usage - Database
 
 ```lua
 local sqlite = require("sqlite")
@@ -36,12 +36,12 @@ db:insert("users", { id = 1, name = "John Doe" })
 -- fetch records
 local users = db:sql("SELECT * FROM users WHERE name = 'John Doe'")
 -- or
-local users = db:fetch("users", "*", "name = 'John Doe'")
+local users = db:select("users", "name = 'John Doe'", "*")
 
 -- update a record
 db:sql("UPDATE users SET name = 'Jane Doe' WHERE id = 1")
 -- or
-db:update("users", { name = "Jane Doe" }, "id = 1")
+db:update("users", "id = 1", { name = "Jane Doe" })
 
 -- delete a record
 db:sql("DELETE FROM users WHERE id = 1")
@@ -54,14 +54,11 @@ db:sql("DROP TABLE users")
 db:drop_table("users")
 
 -- get tables and columns
-local tables = db:sql("SELECT name FROM sqlite_master WHERE type='table';")
-local columns = db:sql("PRAGMA table_info(users);")
--- or
 local tables = db:get_tables()
 local columns = db:get_columns("users")
 ```
 
-## Usage - ORM
+### Usage - ORM
 
 The plugin also provides a tiny ORM that you might find useful.
 
@@ -98,9 +95,9 @@ User:delete("id = " .. id)
 local young_users = User:query():select({ "name", "age" }):where("age < 50"):order_by("age DESC"):limit(1):execute()
 ```
 
-## API
+### API
 
-### Database
+#### Database
 
 When you execute `sqlite.open("test.db")`, a new `sqlite3` process is spawned and you get back a `Database` object.
 
@@ -115,11 +112,11 @@ When you execute `sqlite.open("test.db")`, a new `sqlite3` process is spawned an
 | `db:create_table(tableName, columns)`        | Syntactic sugar for creating a table.                                                     |
 | `db:drop_table(tableName)`                   | Syntactic sugar for dropping a table.                                                     |
 | `db:insert(tableName, data)`                 | Syntactic sugar for inserting a record.                                                   |
-| `db:select(tableName, columns?, condition?)` | Syntactic sugar for selecting records.                                                    |
-| `db:update(tableName, data, condition?)`     | Syntactic sugar for updating records.                                                     |
+| `db:select(tableName, condition?, columns?)` | Syntactic sugar for selecting records.                                                    |
+| `db:update(tableName, condition?, data)`     | Syntactic sugar for updating records.                                                     |
 | `db:delete(tableName, condition?)`           | Syntactic sugar for deleting records.                                                     |
 
-### ORM
+#### ORM
 
 | Method                                   | Description                                       |
 | ---------------------------------------- | ------------------------------------------------- |
@@ -134,7 +131,7 @@ When you execute `sqlite.open("test.db")`, a new `sqlite3` process is spawned an
 | `model:find_one(condition?)`             | Finds a single record.                            |
 | `model:find_by_id(id)`                   | Finds a record by its ID (must have a single PK). |
 | `model:all()`                            | Gets all records.                                 |
-| `model:update(data, condition?)`         | Updates records.                                  |
+| `model:update(condition?, data)`         | Updates records.                                  |
 | `model:delete(condition?)`               | Deletes records.                                  |
 | `model:query()`                          | Returns a query builder.                          |
 | `query:select(fields?)`                  | Selects specific fields.                          |
@@ -143,7 +140,7 @@ When you execute `sqlite.open("test.db")`, a new `sqlite3` process is spawned an
 | `query:limit(n)`                         | Limits the number of records returned.            |
 | `query:execute()`                        | Executes the query and returns the result.        |
 
-## Development
+### Development
 
 ```sh
 git clone --recurse-submodules https://github.com/3rd/sqlite.nvim

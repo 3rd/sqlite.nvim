@@ -99,9 +99,9 @@ function Model:all()
   return self:find()
 end
 
-function Model:update(data, condition)
+function Model:update(condition, data)
   assert(self.db, "Database not connected. Call :connect(db_or_path) first.")
-  return self.db:update(self.name, data, condition)
+  return self.db:update(self.name, condition, data)
 end
 
 function Model:delete(condition)

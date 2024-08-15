@@ -51,10 +51,10 @@ describe("orm", function()
   it("should update records", function()
     local id = User:create({ name = "Alice Brown", email = "alice@example.com", age = 35 })
 
-    User:update({ age = 36 }, "id = " .. id)
+    User:update("id = " .. id, { age = 36 })
     expect(User:find_by_id(id).age).toBe(36)
 
-    User:update({ age = 37 }, "name = 'Alice Brown'")
+    User:update("name = 'Alice Brown'", { age = 37 })
     expect(User:find_one("name = 'Alice Brown'").age).toBe(37)
   end)
 

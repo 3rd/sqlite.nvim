@@ -190,9 +190,9 @@ function Database:select(tableName, condition, columns)
 end
 
 ---@param tableName string
----@param data table
 ---@param condition? string
-function Database:update(tableName, data, condition)
+---@param data table
+function Database:update(tableName, condition, data)
   local updates = {}
   for key, value in pairs(data) do
     local updatePart = string.format("%s = ", key)
