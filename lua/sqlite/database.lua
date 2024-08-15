@@ -1,3 +1,5 @@
+local utils = require("sqlite.utils")
+
 local uv = vim.loop
 local EOF_MARKER = "--EOF--"
 
@@ -89,9 +91,9 @@ function Database.open(path, options)
 end
 
 ---@param command string
----@param as_json? boolean
+---@param raw? boolean
 ---return table|string|nil
-function Database:execute(command, as_json)
+function Database:execute(command, raw)
   self.output = ""
   self.ready = false
 
@@ -118,7 +120,7 @@ function Database:execute(command, as_json)
     self.log("Received output:", trimmed_output)
   end
 
-  if as_json == false then return trimmed_output end
+  if raw then return trimmed_output end
 
   local json_output = vim.fn.json_decode(trimmed_output)
   self.log("Parsed JSON:", json_output)
@@ -130,7 +132,7 @@ end
 function Database:sql(sql)
   if not vim.endswith(sql, ";") then sql = sql .. ";" end
   ---@diagnostic disable-next-line: return-type-mismatch
-  return self:execute(sql, true)
+  return self:execute(sql)
 end
 
 function Database:close()
@@ -153,21 +155,28 @@ function Database:insert(tableName, data)
   for key, value in pairs(data) do
     table.insert(keys, key)
     if type(value) == "string" then
-      table.insert(values, "'" .. value:gsub("'", "''") .. "'")
+      table.insert(values, utils.escape_sql_string(value))
     else
       table.insert(values, tostring(value))
     end
   end
 
-  local sql =
-    string.format("INSERT INTO %s (%s) VALUES (%s);", tableName, table.concat(keys, ", "), table.concat(values, ", "))
+  local sql = string.format(
+    "INSERT INTO %s (%s) VALUES (%s); SELECT last_insert_rowid();",
+    tableName,
+    table.concat(keys, ", "),
+    table.concat(values, ", ")
+  )
   self.log("Inserting into", tableName, ":", sql)
-  return self:execute(sql)
+  local result = self:execute(sql)
+  if type(result) == "table" and #result > 0 then return result[1]["last_insert_rowid()"] end
+  return result
 end
 
 ---@param tableName string
 ---@param condition? string
 ---@param columns? string
+---@return table|nil
 function Database:select(tableName, condition, columns)
   columns = columns or "*"
   if type(columns) == "table" then columns = table.concat(columns, ", ") end
@@ -175,7 +184,9 @@ function Database:select(tableName, condition, columns)
   if condition then sql = sql .. " WHERE " .. condition end
   sql = sql .. ";"
   self.log("Selecting from", tableName, "with condition:", condition or "None")
-  return self:execute(sql, true) -- true to parse output as JSON
+  local result = self:execute(sql)
+  assert(type(result) == "table" or result == nil, "Expected table or nil, got " .. type(result))
+  return result
 end
 
 ---@param tableName string
@@ -186,7 +197,7 @@ function Database:update(tableName, data, condition)
   for key, value in pairs(data) do
     local updatePart = string.format("%s = ", key)
     if type(value) == "string" then
-      updatePart = updatePart .. "'" .. value:gsub("'", "''") .. "'"
+      updatePart = updatePart .. utils.escape_sql_string(value)
     else
       updatePart = updatePart .. tostring(value)
     end

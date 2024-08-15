@@ -3,27 +3,30 @@
 local Database = require("sqlite.database")
 
 describe("database", function()
+  ---@type Database
+  local db
+
+  before_each(function()
+    db = Database.open(":memory:")
+  end)
+
   it("should open a database", function()
-    local db = Database.open(":memory:")
-    local result = db:execute(".mode", false)
+    local result = db:execute(".mode", true)
     expect(result).toBe("current output mode: json")
   end)
 
   it("should execute a query", function()
-    local db = Database.open(":memory:")
     local result = db:execute("SELECT sqlite_version();")
     expect(type(result)).toBe("table")
     expect(type(result[1]["sqlite_version()"])).toBe("string")
   end)
 
   it("should close the database", function()
-    local db = Database.open(":memory:")
     db:close()
     expect(db.handle).toBe(nil)
   end)
 
   it("should create a table", function()
-    local db = Database.open(":memory:")
     db:create_table("users", { "id", "name" })
 
     local result = db:get_tables()
@@ -31,7 +34,6 @@ describe("database", function()
   end)
 
   it("should insert a record", function()
-    local db = Database.open(":memory:")
     db:create_table("users", { "id", "name" })
 
     db:insert("users", { id = 1, name = "John Doe" })
@@ -41,7 +43,6 @@ describe("database", function()
   end)
 
   it("should update a record", function()
-    local db = Database.open(":memory:")
     db:create_table("users", { "id", "name" })
     db:insert("users", { id = 1, name = "John Doe" })
 
@@ -54,7 +55,6 @@ describe("database", function()
   end)
 
   it("should delete a record", function()
-    local db = Database.open(":memory:")
     db:create_table("users", { "id", "name" })
     db:insert("users", { id = 1, name = "John Doe" })
 
@@ -67,7 +67,6 @@ describe("database", function()
   end)
 
   it("should drop a table", function()
-    local db = Database.open(":memory:")
     db:create_table("users", { "id", "name" })
 
     local result = db:get_tables()
@@ -79,7 +78,6 @@ describe("database", function()
   end)
 
   it("should get columns for a table", function()
-    local db = Database.open(":memory:")
     db:create_table("users", { "id INTEGER PRIMARY KEY", "name TEXT NOT NULL" })
 
     local result = db:get_columns("users")
