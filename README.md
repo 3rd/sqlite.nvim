@@ -86,7 +86,7 @@ local user = User:find_by_id(1)
 local user = User:find_one("name = 'John Doe'")
 
 -- update a record
-User:update({ age = 36 }, "id = " .. id)
+User:update("id = " .. id, { age = 36 })
 
 -- delete a record
 User:delete("id = " .. id)
