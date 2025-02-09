@@ -10,6 +10,7 @@ local EOF_MARKER = "--EOF--"
 ---@field debug boolean
 ---@field timeout number
 ---@field output string
+---@field error__output string
 ---@field ready boolean
 ---@field log fun(...)
 local Database = {}
@@ -81,20 +82,31 @@ function Database.open(path, options)
       self.log("Error reading from stderr:", err)
       return
     end
-    if data then self.log("Received stderr data:", data) end
+    if data then
+      self.log("Received stderr data:", data)
+      self.error_output = self.error_output .. data
+    end
   end)
 
   -- bootstrap
   self:execute(".mode json")
+  self:execute("PRAGMA busy_timeout = 5000;")
 
   return self
+end
+
+function Database:assert_open()
+  assert(self.handle, "Database connection is closed or not initialized.")
 end
 
 ---@param command string
 ---@param raw? boolean
 ---return table|string|nil
 function Database:execute(command, raw)
+  self:assert_open()
+
   self.output = ""
+  self.error_output = ""
   self.ready = false
 
   self.log("Executing command:", command)
@@ -110,7 +122,10 @@ function Database:execute(command, raw)
     uv.run("once")
   end
 
-  if not self.ready then error("SQLite query timed out.") end
+  if self.error_output ~= "" then
+    --
+    error("SQLite error: " .. self.error_output)
+  end
 
   local trimmed_output = vim.trim(vim.fn.substitute(self.output, EOF_MARKER, "", ""))
   if trimmed_output == "" then
@@ -122,7 +137,13 @@ function Database:execute(command, raw)
 
   if raw then return trimmed_output end
 
-  local json_output = vim.fn.json_decode(trimmed_output)
+  local ok, json_output = pcall(vim.fn.json_decode, trimmed_output)
+  if not ok then error("Failed to decode JSON from SQLite output: " .. trimmed_output) end
+
+  if json_output ~= nil and type(json_output) ~= "table" then
+    error("Expected JSON output to be a table, got: " .. type(json_output))
+  end
+
   self.log("Parsed JSON:", json_output)
   return json_output
 end
@@ -130,6 +151,7 @@ end
 ---@param sql string
 ---@return table|nil
 function Database:sql(sql)
+  self:assert_open()
   if not vim.endswith(sql, ";") then sql = sql .. ";" end
   ---@diagnostic disable-next-line: return-type-mismatch
   return self:execute(sql)
@@ -137,7 +159,7 @@ end
 
 function Database:close()
   self.log("Closing database connection.")
-  if not self.handle then error("Database is already closed.") end
+  if not self.handle then error("Database is already closed or not initialized.") end
   self.stdio.stdin:write(".exit\n")
   self.stdio.stdin:close()
   self.stdio.stdout:close()
@@ -150,6 +172,7 @@ end
 ---@param tableName string
 ---@param data table
 function Database:insert(tableName, data)
+  self:assert_open()
   local keys = {}
   local values = {}
   for key, value in pairs(data) do
@@ -178,6 +201,7 @@ end
 ---@param columns? string
 ---@return table|nil
 function Database:select(tableName, condition, columns)
+  self:assert_open()
   columns = columns or "*"
   if type(columns) == "table" then columns = table.concat(columns, ", ") end
   local sql = string.format("SELECT %s FROM %s", columns, tableName)
@@ -193,6 +217,7 @@ end
 ---@param condition? string
 ---@param data table
 function Database:update(tableName, condition, data)
+  self:assert_open()
   local updates = {}
   for key, value in pairs(data) do
     local updatePart = string.format("%s = ", key)
@@ -214,6 +239,7 @@ end
 ---@param tableName string
 ---@param condition? string
 function Database:delete(tableName, condition)
+  self:assert_open()
   local sql = string.format("DELETE FROM %s", tableName)
   if condition then sql = sql .. " WHERE " .. condition end
   sql = sql .. ";"
@@ -224,6 +250,7 @@ end
 ---@param tableName string
 ---@param columns string[]
 function Database:create_table(tableName, columns)
+  self:assert_open()
   local sql = string.format("CREATE TABLE %s (%s);", tableName, table.concat(columns, ", "))
   self.log("Creating table", tableName, ":", sql)
   return self:execute(sql)
@@ -231,6 +258,7 @@ end
 
 ---@param tableName string
 function Database:drop_table(tableName)
+  self:assert_open()
   local sql = string.format("DROP TABLE %s;", tableName)
   self.log("Dropping table", tableName, ":", sql)
   return self:execute(sql)
@@ -238,6 +266,7 @@ end
 
 ---@return table<{ name: string }>|nil
 function Database:get_tables()
+  self:assert_open()
   local sql_with_columns = "SELECT name FROM sqlite_master WHERE type='table';"
   self.log("Getting tables:", sql_with_columns)
   ---@diagnostic disable-next-line: return-type-mismatch
@@ -246,6 +275,7 @@ end
 
 ---@return table<{ name: string, type: string }>|nil
 function Database:get_columns(tableName)
+  self:assert_open()
   local sql_with_columns = string.format("PRAGMA table_info(%s);", tableName)
   self.log("Getting columns for", tableName, ":", sql_with_columns)
   ---@diagnostic disable-next-line: return-type-mismatch
